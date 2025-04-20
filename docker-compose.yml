@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: bakery-db
+    environment:
+      POSTGRES_DB: bakery
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  redis:
+    image: redis:alpine
+    container_name: bakery-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    container_name: bakery-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  backend:
+    build: ./backend
+    container_name: bakery-backend
+    depends_on:
+      - db
+      - rabbitmq
+      - redis
+    environment:
+      - DB_HOST=db
+      - POSTGRES_DB=bakery
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - RABBITMQ_HOST=rabbitmq
+      - REDIS_HOST=redis
+    ports:
+      - "5000:5000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  frontend:
+    build: ./frontend
+    container_name: bakery-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  worker:
+    build: ./worker
+    container_name: bakery-worker
+    depends_on:
+      - db
+      - rabbitmq
+    environment:
+      - DB_HOST=db
+      - POSTGRES_DB=bakery
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - RABBITMQ_HOST=rabbitmq
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+volumes:
+  postgres_data:
