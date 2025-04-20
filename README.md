@@ -3,7 +3,7 @@ A containerized bakery management application built with Docker that allows cust
 
 ## System Architecture Overview
 
-![System Architecture](https://via.placeholder.com/800x400?text=Bakery+System+Architecture)
+![System Architecture](screenshot.png)
 
 The Bakery Management System follows a microservices architecture pattern with the following components:
 
